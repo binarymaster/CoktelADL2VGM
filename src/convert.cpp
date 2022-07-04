@@ -46,6 +46,30 @@ static std::string changeExtension(const std::string &file, const std::string &e
 	return std::string(file, 0, sep) + "." + ext;
 }
 
+static void extractMus(Common::SeekableReadStream &data, const std::string &name) {
+	Common::DumpFile bin;
+
+	if (!bin.open(name))
+		throw Common::Exception("Failed to open \"%s\" for writing", name.c_str());
+
+	data.seek(0);
+	byte  *_songData;
+	uint32 _songDataSize;
+	_songDataSize = data.size() - data.pos();
+	_songData     = new byte[_songDataSize];
+
+	if (data.read(_songData, _songDataSize) != _songDataSize)
+		throw Common::kReadError;
+
+	bin.write(_songData, _songDataSize);
+	bin.flush();
+	bin.close();
+	delete[] _songData;
+
+	if (bin.err())
+		throw Common::kWriteError;
+}
+
 static void convertADL(Gob::GameDir &gameDir, const std::string &adlFile) {
 	status("Converting ADL \"%s\" to VGM...", adlFile.c_str());
 
@@ -56,6 +80,8 @@ static void convertADL(Gob::GameDir &gameDir, const std::string &adlFile) {
 		AdLib::ADLPlayer adlPlayer(*adl);
 
 		adlPlayer.convert(adlFile + ".vgm");
+
+		extractMus(*adl, adlFile);
 
 	} catch (Common::Exception &e) {
 		delete adl;
@@ -91,6 +117,8 @@ static void convertTOTADL(const Gob::TOTFile &tot) {
 
 			adlPlayer.convert(std::string(name) + ".vgm");
 
+			extractMus(*adl, std::string(name));
+
 		} catch (Common::Exception &e) {
 			delete adl;
 			adl = 0;
@@ -116,6 +144,8 @@ static void convertTOTADL(const Gob::TOTFile &tot) {
 
 			adlPlayer.convert(std::string(name) + ".vgm");
 
+			extractMus(*adl, std::string(name));
+
 		} catch (Common::Exception &e) {
 			delete adl;
 			adl = 0;
@@ -139,6 +169,9 @@ static void convertMDY(Gob::GameDir &gameDir, const std::string &mdyFile, const 
 		AdLib::MUSPlayer musPlayer(*mdy, *tbr);
 
 		musPlayer.convert(mdyFile + ".vgm");
+
+		extractMus(*mdy, mdyFile);
+		extractMus(*tbr, tbrFile);
 
 	} catch (Common::Exception &e) {
 		delete mdy;
